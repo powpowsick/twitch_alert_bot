@@ -5,9 +5,16 @@ from discord.ext import commands
 import json
 import os.path
 
-TWITCH_CLIENT = TwitchClient(client_id='hv9nfu4rqln344k6fiqw5ub7hlzwvp')
 
 DISCORD_CLIENT = commands.Bot(command_prefix='!', description = "")
+
+#Loads in twitch and discord keys from file
+if os.path.isfile('keys.json'):
+    with open('keys.json', 'r') as file_handle:
+        key = json.load(file_handle)
+
+TWITCH_CLIENT = TwitchClient(client_id=key['twitch_key'])
+
 
 
 
@@ -91,7 +98,7 @@ async def generate_message():
     """Generates message when a streamer comes online"""
     await DISCORD_CLIENT.wait_until_ready()
     while not DISCORD_CLIENT.is_closed:
-        for streamer in STREAMERS:
+        for streamer in STREAMERS.keys():
             previous_live_status = STREAMERS[streamer]['live_status']
             refresh_live_status(streamer)
             mentions = get_mentions(streamer)
@@ -125,4 +132,6 @@ def refresh_live_status(streamer):
 
 DISCORD_CLIENT.loop.create_task(generate_message())
 
-DISCORD_CLIENT.run('MzI3ODU2NTcxMDEyODc0MjQw.DC7bxg.MI-GpaRGWkdsNhlwlINwfBPLprk')
+DISCORD_CLIENT.run(key['discord_key'])
+
+
