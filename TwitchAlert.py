@@ -1,9 +1,9 @@
-import discord
 import asyncio
-from twitch import TwitchClient
+import discord
 from discord.ext import commands
 import json
 import os.path
+from twitch import TwitchClient
 
 
 DISCORD_CLIENT = commands.Bot(command_prefix='!', description = "")
