@@ -8,19 +8,19 @@ import os.path
 
 DISCORD_CLIENT = commands.Bot(command_prefix='!', description = "")
 
-#Loads in twitch and discord keys from file
+# Loads in twitch and discord keys from file.
 if os.path.isfile('keys.json'):
     with open('keys.json', 'r') as file_handle:
-        key = json.load(file_handle)
+        KEY = json.load(file_handle)
 
-TWITCH_CLIENT = TwitchClient(client_id=key['twitch_key'])
+TWITCH_CLIENT = TwitchClient(client_id=KEY['twitch'])
 
-
-
+CHANNEL_ID ='261104162656354306'
 
 STREAMERS = {}
 
-#Load STREAMERS from file
+
+# Load STREAMERS from file.
 if os.path.isfile('streamers.json'):
     with open('streamers.json', 'r') as file_handle:
         STREAMERS = json.load(file_handle)
@@ -29,53 +29,54 @@ if os.path.isfile('streamers.json'):
 async def follow(context):
     """Follow a streamer on twitch.tv."""
     channel = context.message.channel
-    channel_to_follow = context.message.content.replace("!follow ", "").lower()
+    streamer = context.message.content.replace("!follow ", "").lower()
     follower = context.message.author.id
 
-    #Check twitch to see if streamer exists
-    if TWITCH_CLIENT.users.translate_usernames_to_ids(channel_to_follow) == []:
-        await DISCORD_CLIENT.send_message(channel, "Failed to follow " + channel_to_follow + ". Channel does not exist.")
+    # Check twitch to see if streamer exists.
+    if TWITCH_CLIENT.users.translate_usernames_to_ids(streamer) == []:
+        await DISCORD_CLIENT.send_message(channel, "Failed to follow " + streamer + ". Channel does not exist.")
         return
 
-    #Creates streamer object if it doesn't already exist
-    if not channel_to_follow in STREAMERS.keys():
-        STREAMERS[channel_to_follow] = {'followers': [], 'live_status': False, 'message_id': None}
+    # Creates streamer object if it doesn't already exist.
+    if not streamer in STREAMERS.keys():
+        STREAMERS[streamer] = {'followers': [], 'live_status': False, 'message_id': None}
 
-    #Assigns follower to streamer if they are not already following
-    if not follower in STREAMERS[channel_to_follow]['followers']:
-        STREAMERS[channel_to_follow]['followers'].append(follower)
-        await DISCORD_CLIENT.send_message(channel, "Following" + " " + channel_to_follow)
+    # Assigns follower to streamer if they are not already following.
+    if not follower in STREAMERS[streamer]['followers']:
+        STREAMERS[streamer]['followers'].append(follower)
+        await DISCORD_CLIENT.send_message(channel, "Following" + " " + streamer)
         print(STREAMERS)
     else:
-        await DISCORD_CLIENT.send_message(channel, "Already following" + " " + channel_to_follow)
+        await DISCORD_CLIENT.send_message(channel, "Already following" + " " + streamer)
 
-    #Save STREAMERS to file
+    # Save STREAMERS to file.
     with open('streamers.json', 'w') as file_handle:
         json.dump(STREAMERS, file_handle)
+
 
 @DISCORD_CLIENT.command(pass_context=True)
 async def unfollow(context):
     """Unfollow a streamer on twitch.tv."""
     channel = context.message.channel
     follower = context.message.author.id
-    channel_to_follow = context.message.content.replace("!unfollow ", "").lower()
+    streamer = context.message.content.replace("!unfollow ", "").lower()
 
-    # Check twitch to see if streamer exists
-    if TWITCH_CLIENT.users.translate_usernames_to_ids(channel_to_follow) == []:
-        await DISCORD_CLIENT.send_message(channel, "Failed to unfollow " + channel_to_follow + ". Channel does not exist.")
+    # Check twitch to see if streamer exists.
+    if TWITCH_CLIENT.users.translate_usernames_to_ids(streamer) == []:
+        await DISCORD_CLIENT.send_message(channel, "Failed to unfollow " + streamer + ". Channel does not exist.")
         return
 
-    #Unassign follower from streamer and removes streamer from dictionary if it has no followers left
-    if channel_to_follow in STREAMERS and follower in STREAMERS[channel_to_follow]['followers']:
-        STREAMERS[channel_to_follow]['followers'].remove(follower)
-        await DISCORD_CLIENT.send_message(channel, "Unfollowed" + " " + channel_to_follow)
-        if STREAMERS[channel_to_follow]['followers'] == []:
-            STREAMERS.pop(channel_to_follow)
+    # Unassign follower from streamer and removes streamer from dictionary if it has no followers left.
+    if streamer in STREAMERS and follower in STREAMERS[streamer]['followers']:
+        STREAMERS[streamer]['followers'].remove(follower)
+        await DISCORD_CLIENT.send_message(channel, "Unfollowed" + " " + streamer)
+        if STREAMERS[streamer]['followers'] == []:
+            STREAMERS.pop(streamer)
         print(STREAMERS)
     else:
-        await DISCORD_CLIENT.send_message(channel, "You are not following" + " " + channel_to_follow)
+        await DISCORD_CLIENT.send_message(channel, "You are not following" + " " + streamer)
 
-    #Save STREAMERS to file
+    # Save STREAMERS to file.
     with open('streamers.json', 'w') as file_handle:
         json.dump(STREAMERS, file_handle)
 
@@ -94,36 +95,37 @@ async def following(context):
     else:
         await DISCORD_CLIENT.send_message(channel, "You are not following any streamers")
 
+
 async def generate_message():
-    """Generates message when a streamer comes online"""
+    """Generates message when a streamer comes online."""
     await DISCORD_CLIENT.wait_until_ready()
     while not DISCORD_CLIENT.is_closed:
         for streamer in STREAMERS.keys():
             previous_live_status = STREAMERS[streamer]['live_status']
             refresh_live_status(streamer)
             mentions = get_mentions(streamer)
-            if previous_live_status == False and STREAMERS[streamer]['live_status'] == True:
-                msg = await DISCORD_CLIENT.send_message(discord.Object(id=261104162656354306),", ".join(mentions) + " " + streamer + " is streaming http://twitch.tv/"+streamer)
-                STREAMERS[streamer]['message_id'] = msg
-            if previous_live_status == True and STREAMERS[streamer]['live_status'] == False:
 
-                #Edit messages when streamer goes offline
-                await DISCORD_CLIENT.edit_message(STREAMERS[streamer]['message_id'],", ".join(mentions)+ " " + streamer + " stopped streaming.")
-            await asyncio.sleep(1)
+            # Send message.
+            if previous_live_status == False and STREAMERS[streamer]['live_status'] == True:
+                messsage = await DISCORD_CLIENT.send_message(discord.Object(id=CHANNEL_ID),", ".join(mentions) + " " + streamer + " is streaming http://twitch.tv/"+streamer)
+                STREAMERS[streamer]['message_id'] = messsage.id
+
+            # Edit messages when streamer goes offline.
+            if previous_live_status == True and STREAMERS[streamer]['live_status'] == False:
+                await DISCORD_CLIENT.edit_message(discord.Message(id=STREAMERS[streamer]['message_id']),", ".join(mentions)+ " " + streamer + " stopped streaming.")
         await asyncio.sleep(10)
 
+
 def get_mentions(streamer):
-    """Returns list of followers for a streamer"""
+    """Returns list of followers for a streamer."""
     mentions = []
     for follower in STREAMERS[streamer]['followers']:
         mentions.append(discord.User(id=follower).mention)
     return mentions
 
 
-
 def refresh_live_status(streamer):
-    """Updates live status of a streamer"""
-    #Check twitch to see if stream is running
+    """Updates live status of a streamer."""
     streamer_id = TWITCH_CLIENT.users.translate_usernames_to_ids(streamer)[0]['id']
     if not TWITCH_CLIENT.streams.get_stream_by_user(streamer_id) == None:
         STREAMERS[streamer]['live_status'] = True
@@ -132,6 +134,6 @@ def refresh_live_status(streamer):
 
 DISCORD_CLIENT.loop.create_task(generate_message())
 
-DISCORD_CLIENT.run(key['discord_key'])
+DISCORD_CLIENT.run(KEY['discord'])
 
 
