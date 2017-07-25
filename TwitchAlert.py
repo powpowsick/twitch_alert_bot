@@ -6,7 +6,7 @@ import os.path
 from twitch import TwitchClient
 
 
-DISCORD_CLIENT = commands.Bot(command_prefix='!', description = "")
+DISCORD_CLIENT = commands.Bot(command_prefix='!', description = "Follow twitch streamers and get notified when they go live!")
 
 # Loads in twitch and discord keys from file.
 if os.path.isfile('keys.json'):
@@ -18,6 +18,8 @@ TWITCH_CLIENT = TwitchClient(client_id=KEY['twitch'])
 CHANNEL_ID ='261104162656354306'
 
 STREAMERS = {}
+
+ID_TO_MESSAGE = {}
 
 
 # Load STREAMERS from file.
@@ -100,20 +102,30 @@ async def generate_message():
     """Generates message when a streamer comes online."""
     await DISCORD_CLIENT.wait_until_ready()
     while not DISCORD_CLIENT.is_closed:
-        for streamer in STREAMERS.keys():
-            previous_live_status = STREAMERS[streamer]['live_status']
-            refresh_live_status(streamer)
-            mentions = get_mentions(streamer)
+        print(STREAMERS)
+        try:
+            for streamer in STREAMERS.keys():
+                previous_live_status = STREAMERS[streamer]['live_status']
+                refresh_live_status(streamer)
+                mentions = get_mentions(streamer)
 
-            # Send message.
-            if previous_live_status == False and STREAMERS[streamer]['live_status'] == True:
-                messsage = await DISCORD_CLIENT.send_message(discord.Object(id=CHANNEL_ID),", ".join(mentions) + " " + streamer + " is streaming http://twitch.tv/"+streamer)
-                STREAMERS[streamer]['message_id'] = messsage.id
+                # Send message.
+                if previous_live_status == False and STREAMERS[streamer]['live_status'] == True:
+                    message = await DISCORD_CLIENT.send_message(discord.Object(id=CHANNEL_ID),", ".join(mentions) + " " + streamer + " is streaming http://twitch.tv/"+streamer)
+                    ID_TO_MESSAGE[message.id] = message
+                    STREAMERS[streamer]['message_id'] = message.id
 
-            # Edit messages when streamer goes offline.
-            if previous_live_status == True and STREAMERS[streamer]['live_status'] == False:
-                await DISCORD_CLIENT.edit_message(discord.Message(id=STREAMERS[streamer]['message_id']),", ".join(mentions)+ " " + streamer + " stopped streaming.")
-        await asyncio.sleep(10)
+                # Edit messages when streamer goes offline.
+                if previous_live_status == True and STREAMERS[streamer]['live_status'] == False:
+                    if not STREAMERS[streamer]['message_id'] in ID_TO_MESSAGE:
+                        continue
+                    await DISCORD_CLIENT.edit_message(ID_TO_MESSAGE[STREAMERS[streamer]['message_id']],", ".join(mentions) + " " + streamer + " has stopped streaming")
+                    STREAMERS[streamer]['message_id'] = None
+            await asyncio.sleep(10)
+        except:
+            await asyncio.sleep(10)
+
+
 
 
 def get_mentions(streamer):
@@ -126,11 +138,14 @@ def get_mentions(streamer):
 
 def refresh_live_status(streamer):
     """Updates live status of a streamer."""
-    streamer_id = TWITCH_CLIENT.users.translate_usernames_to_ids(streamer)[0]['id']
-    if not TWITCH_CLIENT.streams.get_stream_by_user(streamer_id) == None:
-        STREAMERS[streamer]['live_status'] = True
-    else:
-        STREAMERS[streamer]['live_status'] = False
+    try:
+        streamer_id = TWITCH_CLIENT.users.translate_usernames_to_ids(streamer)[0]['id']
+        if not TWITCH_CLIENT.streams.get_stream_by_user(streamer_id) == None:
+            STREAMERS[streamer]['live_status'] = True
+        else:
+            STREAMERS[streamer]['live_status'] = False
+    except:
+        STREAMERS[streamer]['live_status'] = None
 
 DISCORD_CLIENT.loop.create_task(generate_message())
 
