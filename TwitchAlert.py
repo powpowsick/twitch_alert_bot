@@ -125,7 +125,7 @@ async def generate_message():
 
             await asyncio.sleep(10)
         except:
-            await asyncio.sleep(10)
+            continue
 
 
 
