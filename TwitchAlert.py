@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 import json
 import os.path
+import _pickle
 from twitch import TwitchClient
 
 
@@ -19,13 +20,11 @@ CHANNEL_ID ='261104162656354306'
 
 STREAMERS = {}
 
-ID_TO_MESSAGE = {}
-
 
 # Load STREAMERS from file.
-if os.path.isfile('streamers.json'):
-    with open('streamers.json', 'r') as file_handle:
-        STREAMERS = json.load(file_handle)
+if os.path.isfile('streamers.pkl'):
+    with open('streamers.pkl', 'rb') as file_handle:
+        STREAMERS = _pickle.load(file_handle)
 
 @DISCORD_CLIENT.command(pass_context=True)
 async def follow(context):
@@ -52,8 +51,8 @@ async def follow(context):
         await DISCORD_CLIENT.send_message(channel, "Already following" + " " + streamer)
 
     # Save STREAMERS to file.
-    with open('streamers.json', 'w') as file_handle:
-        json.dump(STREAMERS, file_handle)
+    with open('streamers.pkl', 'wb') as file_handle:
+        _pickle.dump(STREAMERS, file_handle)
 
 
 @DISCORD_CLIENT.command(pass_context=True)
@@ -79,8 +78,8 @@ async def unfollow(context):
         await DISCORD_CLIENT.send_message(channel, "You are not following" + " " + streamer)
 
     # Save STREAMERS to file.
-    with open('streamers.json', 'w') as file_handle:
-        json.dump(STREAMERS, file_handle)
+    with open('streamers.pkl', 'wb') as file_handle:
+        _pickle.dump(STREAMERS, file_handle)
 
 
 @DISCORD_CLIENT.command(pass_context=True)
@@ -110,17 +109,20 @@ async def generate_message():
                 mentions = get_mentions(streamer)
 
                 # Send message.
-                if previous_live_status == False and STREAMERS[streamer]['live_status'] == True:
-                    message = await DISCORD_CLIENT.send_message(discord.Object(id=CHANNEL_ID),", ".join(mentions) + " " + streamer + " is streaming http://twitch.tv/"+streamer)
-                    ID_TO_MESSAGE[message.id] = message
-                    STREAMERS[streamer]['message_id'] = message.id
+                if STREAMERS[streamer]['message_id'] == None:
+                    if previous_live_status == False and STREAMERS[streamer]['live_status'] == True:
+                        message = await DISCORD_CLIENT.send_message(discord.Object(id=CHANNEL_ID),", ".join(mentions) + " " + streamer + " is streaming http://twitch.tv/"+streamer)
+                        STREAMERS[streamer]['message_id'] = message
+                    with open('streamers.pkl', 'wb') as file_handle:
+                        _pickle.dump(STREAMERS, file_handle)
 
                 # Edit messages when streamer goes offline.
                 if previous_live_status == True and STREAMERS[streamer]['live_status'] == False:
-                    if not STREAMERS[streamer]['message_id'] in ID_TO_MESSAGE:
-                        continue
-                    await DISCORD_CLIENT.edit_message(ID_TO_MESSAGE[STREAMERS[streamer]['message_id']],", ".join(mentions) + " " + streamer + " has stopped streaming")
+                    await DISCORD_CLIENT.edit_message(STREAMERS[streamer]['message_id'],", ".join(mentions) + " " + streamer + " has stopped streaming")
                     STREAMERS[streamer]['message_id'] = None
+                    with open('streamers.pkl', 'wb') as file_handle:
+                        _pickle.dump(STREAMERS, file_handle)
+
             await asyncio.sleep(10)
         except:
             await asyncio.sleep(10)
