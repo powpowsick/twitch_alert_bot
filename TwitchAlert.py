@@ -122,7 +122,7 @@ async def generate_message():
                     STREAMERS[streamer]['message_id'] = None
                     with open('streamers.pkl', 'wb') as file_handle:
                         _pickle.dump(STREAMERS, file_handle)
-
+                await asyncio.sleep(0.1)
             await asyncio.sleep(10)
         except:
             continue
